@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import numpy as np
@@ -536,3 +537,75 @@ def test_compute_encoded_size(
     spec = _make_spec(source_dtype_str, 0)
     result = codec.compute_encoded_size(input_bytes, spec)
     assert result == case.expected
+
+
+# ---------------------------------------------------------------------------
+# __init__ with ZDType (non-string data_type)
+# ---------------------------------------------------------------------------
+
+
+def test_init_with_zdtype() -> None:
+    """Test that CastValue can be constructed with a ZDType instead of a string."""
+    zdtype = get_data_type_from_json("uint8", zarr_format=3)
+    codec = CastValue(data_type=zdtype)
+    assert codec.dtype is zdtype
+
+
+# ---------------------------------------------------------------------------
+# async encode / decode
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        Expect(
+            id="async-encode-int32-to-uint8",
+            input=(
+                CastValue(data_type="uint8"),
+                np.array([1, 2, 3, 4], dtype=np.int32),
+                "int32",
+            ),
+            expected=np.array([1, 2, 3, 4], dtype=np.uint8),
+            eq=_arrays_bytes_equal,
+        ),
+    ],
+)
+def test_encode_single(
+    case: Expect[tuple[CastValue, np.ndarray, str], np.ndarray],
+) -> None:
+    """Test that the async _encode_single path produces the same result as sync."""
+    codec, arr, source_dtype_str = case.input
+    spec = _make_spec(source_dtype_str, 0, shape=arr.shape)
+    buf = NDBuffer.from_ndarray_like(arr)
+    result_buf = asyncio.run(codec._encode_single(buf, spec))
+    assert result_buf is not None
+    result = np.asarray(result_buf.as_ndarray_like())
+    assert case.eq(result, case.expected)
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        Expect(
+            id="async-decode-uint8-to-int32",
+            input=(
+                CastValue(data_type="uint8"),
+                np.array([1, 2, 3], dtype=np.uint8),
+                "int32",
+            ),
+            expected=np.array([1, 2, 3], dtype=np.int32),
+            eq=_arrays_bytes_equal,
+        ),
+    ],
+)
+def test_decode_single(
+    case: Expect[tuple[CastValue, np.ndarray, str], np.ndarray],
+) -> None:
+    """Test that the async _decode_single path produces the same result as sync."""
+    codec, arr, source_dtype_str = case.input
+    spec = _make_spec(source_dtype_str, 0, shape=arr.shape)
+    buf = NDBuffer.from_ndarray_like(arr)
+    result_buf = asyncio.run(codec._decode_single(buf, spec))
+    result = np.asarray(result_buf.as_ndarray_like())
+    assert case.eq(result, case.expected)

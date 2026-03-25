@@ -4,7 +4,6 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
-
 from zarr.abc.codec import ArrayArrayCodec
 from zarr.core.common import JSON, parse_named_configuration
 from zarr.core.dtype import get_data_type_from_json
@@ -230,7 +229,7 @@ class CastValue(ArrayArrayCodec):
     def compute_encoded_size(self, input_byte_length: int, chunk_spec: ArraySpec) -> int:
         source_itemsize = chunk_spec.dtype.to_native_dtype().itemsize
         target_itemsize = self.dtype.to_native_dtype().itemsize
-        if source_itemsize == 0:
+        if source_itemsize == 0:  # pragma: no cover
             return 0
         num_elements = input_byte_length // source_itemsize
         return num_elements * target_itemsize

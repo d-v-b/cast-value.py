@@ -93,6 +93,33 @@ if TYPE_CHECKING:
             ),
             expected=np.array([-1.0, -1.0, -1.0], dtype=np.float64),
         ),
+        Expect(
+            id="inf-source-replaced",
+            input=(
+                np.array([1.0, np.inf, 3.0], dtype=np.float64),
+                [(np.float64(np.inf), np.float64(0.0))],
+            ),
+            expected=np.array([1.0, 0.0, 3.0], dtype=np.float64),
+        ),
+        Expect(
+            id="neg-inf-source-replaced",
+            input=(
+                np.array([1.0, -np.inf, 3.0], dtype=np.float64),
+                [(np.float64(-np.inf), np.float64(0.0))],
+            ),
+            expected=np.array([1.0, 0.0, 3.0], dtype=np.float64),
+        ),
+        Expect(
+            id="chain-order-first-wins",
+            input=(
+                np.array([1, 2, 3], dtype=np.int64),
+                [
+                    (np.int64(1), np.int64(2)),
+                    (np.int64(2), np.int64(3)),
+                ],
+            ),
+            expected=np.array([3, 3, 3], dtype=np.int64),
+        ),
     ],
 )
 def test_apply_scalar_map(
@@ -152,6 +179,11 @@ def test_apply_scalar_map(
             input=(np.array([3.0, -2.0, 0.0], dtype=np.float64), "nearest-even"),
             expected=np.array([3.0, -2.0, 0.0], dtype=np.float64),
         ),
+        Expect(
+            id="empty-array",
+            input=(np.array([], dtype=np.float64), "nearest-even"),
+            expected=np.array([], dtype=np.float64),
+        ),
     ],
 )
 def test_round_inplace(case: Expect[tuple[np.ndarray, str], np.ndarray]) -> None:
@@ -188,7 +220,7 @@ def test_round_inplace_fail(case: ExpectFail[tuple[np.ndarray, str]]) -> None:
     "case",
     [
         Expect(
-            id="in-range-no-action",
+            id="in-range-uint8",
             input=(
                 np.array([0, 100, 255], dtype=np.int64),
                 np.dtype(np.uint8),
@@ -197,7 +229,7 @@ def test_round_inplace_fail(case: ExpectFail[tuple[np.ndarray, str]]) -> None:
             expected=np.array([0, 100, 255], dtype=np.uint8),
         ),
         Expect(
-            id="clamp-out-of-range",
+            id="clamp-uint8",
             input=(
                 np.array([-10, 300], dtype=np.int64),
                 np.dtype(np.uint8),
@@ -206,7 +238,7 @@ def test_round_inplace_fail(case: ExpectFail[tuple[np.ndarray, str]]) -> None:
             expected=np.array([0, 255], dtype=np.uint8),
         ),
         Expect(
-            id="wrap-unsigned",
+            id="wrap-uint8",
             input=(
                 np.array([256, -1, 512], dtype=np.int64),
                 np.dtype(np.uint8),
@@ -215,7 +247,7 @@ def test_round_inplace_fail(case: ExpectFail[tuple[np.ndarray, str]]) -> None:
             expected=np.array([0, 255, 0], dtype=np.uint8),
         ),
         Expect(
-            id="wrap-signed",
+            id="wrap-int8",
             input=(
                 np.array([128, -129], dtype=np.int64),
                 np.dtype(np.int8),
@@ -224,7 +256,7 @@ def test_round_inplace_fail(case: ExpectFail[tuple[np.ndarray, str]]) -> None:
             expected=np.array([-128, 127], dtype=np.int8),
         ),
         Expect(
-            id="clamp-signed",
+            id="clamp-int8",
             input=(
                 np.array([-1000, 1000], dtype=np.int64),
                 np.dtype(np.int8),
@@ -233,13 +265,40 @@ def test_round_inplace_fail(case: ExpectFail[tuple[np.ndarray, str]]) -> None:
             expected=np.array([-128, 127], dtype=np.int8),
         ),
         Expect(
-            id="widen-no-range-issue",
+            id="widen-int32-to-int64",
             input=(
                 np.array([10, 20], dtype=np.int32),
                 np.dtype(np.int64),
                 None,
             ),
             expected=np.array([10, 20], dtype=np.int64),
+        ),
+        Expect(
+            id="wrap-uint16",
+            input=(
+                np.array([65536, -1], dtype=np.int64),
+                np.dtype(np.uint16),
+                "wrap",
+            ),
+            expected=np.array([0, 65535], dtype=np.uint16),
+        ),
+        Expect(
+            id="clamp-all-negative-to-uint8",
+            input=(
+                np.array([-5, -100, -1], dtype=np.int64),
+                np.dtype(np.uint8),
+                "clamp",
+            ),
+            expected=np.array([0, 0, 0], dtype=np.uint8),
+        ),
+        Expect(
+            id="same-type-int8-noop",
+            input=(
+                np.array([-1, 0, 1], dtype=np.int64),
+                np.dtype(np.int8),
+                None,
+            ),
+            expected=np.array([-1, 0, 1], dtype=np.int8),
         ),
     ],
 )
@@ -360,8 +419,234 @@ def test_extract_raw_map(
     assert result == case.expected
 
 
+# ===========================================================================
+# cast_array — split by direction
+# ===========================================================================
+
+
+def _call_cast(
+    arr: np.ndarray,
+    target_dtype: np.dtype,
+    rounding_mode: str = "nearest-even",
+    out_of_range_mode: str | None = None,
+    scalar_map_entries: list[MapEntry] | None = None,
+) -> np.ndarray:
+    return cast_array(
+        arr,
+        target_dtype=target_dtype,
+        rounding_mode=rounding_mode,
+        out_of_range_mode=out_of_range_mode,
+        scalar_map_entries=scalar_map_entries,
+    )
+
+
 # ---------------------------------------------------------------------------
-# cast_array
+# cast_array: int → int
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        # --- narrowing ---
+        Expect(
+            id="narrow-int32-to-int8-in-range",
+            input=(
+                np.array([0, 127, -128], dtype=np.int32),
+                np.dtype(np.int8),
+                None,
+                None,
+            ),
+            expected=np.array([0, 127, -128], dtype=np.int8),
+        ),
+        Expect(
+            id="narrow-int32-to-int8-clamp",
+            input=(
+                np.array([0, 300, -200], dtype=np.int32),
+                np.dtype(np.int8),
+                "clamp",
+                None,
+            ),
+            expected=np.array([0, 127, -128], dtype=np.int8),
+        ),
+        Expect(
+            id="narrow-int32-to-int8-wrap",
+            input=(
+                np.array([128, -129], dtype=np.int32),
+                np.dtype(np.int8),
+                "wrap",
+                None,
+            ),
+            expected=np.array([-128, 127], dtype=np.int8),
+        ),
+        # --- widening ---
+        Expect(
+            id="widen-int8-to-int32",
+            input=(
+                np.array([1, -1, 127, -128], dtype=np.int8),
+                np.dtype(np.int32),
+                None,
+                None,
+            ),
+            expected=np.array([1, -1, 127, -128], dtype=np.int32),
+        ),
+        Expect(
+            id="widen-int8-to-int64",
+            input=(
+                np.array([1, 2], dtype=np.int8),
+                np.dtype(np.int64),
+                None,
+                None,
+            ),
+            expected=np.array([1, 2], dtype=np.int64),
+        ),
+        # --- cross-sign ---
+        Expect(
+            id="cross-int32-to-uint8-in-range",
+            input=(
+                np.array([0, 100, 200], dtype=np.int32),
+                np.dtype(np.uint8),
+                None,
+                None,
+            ),
+            expected=np.array([0, 100, 200], dtype=np.uint8),
+        ),
+        Expect(
+            id="cross-int32-to-uint8-clamp",
+            input=(
+                np.array([-10, 300], dtype=np.int32),
+                np.dtype(np.uint8),
+                "clamp",
+                None,
+            ),
+            expected=np.array([0, 255], dtype=np.uint8),
+        ),
+        Expect(
+            id="cross-int32-to-uint8-wrap",
+            input=(
+                np.array([256, -1], dtype=np.int32),
+                np.dtype(np.uint8),
+                "wrap",
+                None,
+            ),
+            expected=np.array([0, 255], dtype=np.uint8),
+        ),
+        Expect(
+            id="cross-uint8-to-int32",
+            input=(
+                np.array([0, 128, 255], dtype=np.uint8),
+                np.dtype(np.int32),
+                None,
+                None,
+            ),
+            expected=np.array([0, 128, 255], dtype=np.int32),
+        ),
+        Expect(
+            id="cross-uint16-to-int16-clamp",
+            input=(
+                np.array([0, 32767, 65535], dtype=np.uint16),
+                np.dtype(np.int16),
+                "clamp",
+                None,
+            ),
+            expected=np.array([0, 32767, 32767], dtype=np.int16),
+        ),
+        # --- identity ---
+        Expect(
+            id="same-int32-to-int32",
+            input=(
+                np.array([1, 2, 3], dtype=np.int32),
+                np.dtype(np.int32),
+                None,
+                None,
+            ),
+            expected=np.array([1, 2, 3], dtype=np.int32),
+        ),
+        # --- with scalar_map ---
+        Expect(
+            id="narrow-with-scalar-map",
+            input=(
+                np.array([1, 2, 3], dtype=np.int32),
+                np.dtype(np.int8),
+                None,
+                [(np.int64(2), np.int64(20))],
+            ),
+            expected=np.array([1, 20, 3], dtype=np.int8),
+        ),
+        Expect(
+            id="scalar-map-brings-value-in-range",
+            input=(
+                np.array([1, 200, 3], dtype=np.int32),
+                np.dtype(np.int8),
+                None,
+                [(np.int64(200), np.int64(50))],
+            ),
+            expected=np.array([1, 50, 3], dtype=np.int8),
+        ),
+        Expect(
+            id="scalar-map-plus-clamp",
+            input=(
+                np.array([1, 200, 3], dtype=np.int32),
+                np.dtype(np.int8),
+                "clamp",
+                [(np.int64(1), np.int64(10))],
+            ),
+            expected=np.array([10, 127, 3], dtype=np.int8),
+        ),
+    ],
+)
+def test_cast_array_int_to_int(
+    case: Expect[
+        tuple[np.ndarray, np.dtype, str | None, list[MapEntry] | None],
+        np.ndarray,
+    ],
+) -> None:
+    """Test cast_array for integer-to-integer casts across narrowing, widening, and cross-sign directions."""
+    arr, target_dtype, out_of_range_mode, scalar_map_entries = case.input
+    result = _call_cast(
+        arr,
+        target_dtype=target_dtype,
+        out_of_range_mode=out_of_range_mode,
+        scalar_map_entries=scalar_map_entries,
+    )
+    assert case.eq(result, case.expected)
+    assert result.dtype == case.expected.dtype
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        ExpectFail(
+            id="narrow-out-of-range-error",
+            input=(
+                np.array([300], dtype=np.int32),
+                np.dtype(np.int8),
+            ),
+            err=ValueError,
+            msg="Values out of range",
+        ),
+        ExpectFail(
+            id="negative-for-unsigned-error",
+            input=(
+                np.array([-1], dtype=np.int32),
+                np.dtype(np.uint8),
+            ),
+            err=ValueError,
+            msg="Values out of range",
+        ),
+    ],
+)
+def test_cast_array_int_to_int_fail(
+    case: ExpectFail[tuple[np.ndarray, np.dtype]],
+) -> None:
+    """Test that cast_array raises ValueError for out-of-range integer casts with no out_of_range mode."""
+    arr, target_dtype = case.input
+    with pytest.raises(case.err, match=case.msg):
+        _call_cast(arr, target_dtype=target_dtype)
+
+
+# ---------------------------------------------------------------------------
+# cast_array: int → float
 # ---------------------------------------------------------------------------
 
 
@@ -369,84 +654,109 @@ def test_extract_raw_map(
     "case",
     [
         Expect(
-            id="float64-to-float32",
+            id="int16-to-float32",
             input=(
-                np.array([1.5, 2.5, 3.5], dtype=np.float64),
+                np.array([1, -1, 0, 32767], dtype=np.int16),
                 np.dtype(np.float32),
-                "nearest-even",
-                None,
                 None,
             ),
-            expected=np.array([1.5, 2.5, 3.5], dtype=np.float32),
+            expected=np.array([1.0, -1.0, 0.0, 32767.0], dtype=np.float32),
         ),
         Expect(
-            id="float32-to-float64",
+            id="int8-to-float64",
             input=(
-                np.array([1.0, 2.0], dtype=np.float32),
+                np.array([-128, 0, 127], dtype=np.int8),
                 np.dtype(np.float64),
-                "nearest-even",
-                None,
                 None,
             ),
-            expected=np.array([1.0, 2.0], dtype=np.float64),
+            expected=np.array([-128.0, 0.0, 127.0], dtype=np.float64),
         ),
         Expect(
             id="int32-to-float64",
             input=(
                 np.array([1, 2, 3], dtype=np.int32),
                 np.dtype(np.float64),
-                "nearest-even",
-                None,
                 None,
             ),
             expected=np.array([1.0, 2.0, 3.0], dtype=np.float64),
         ),
         Expect(
-            id="int32-to-int32-identity",
+            id="uint8-to-float32",
+            input=(
+                np.array([0, 128, 255], dtype=np.uint8),
+                np.dtype(np.float32),
+                None,
+            ),
+            expected=np.array([0.0, 128.0, 255.0], dtype=np.float32),
+        ),
+        Expect(
+            id="uint16-to-float64",
+            input=(
+                np.array([0, 65535], dtype=np.uint16),
+                np.dtype(np.float64),
+                None,
+            ),
+            expected=np.array([0.0, 65535.0], dtype=np.float64),
+        ),
+        # --- with scalar_map ---
+        Expect(
+            id="with-scalar-map",
             input=(
                 np.array([1, 2, 3], dtype=np.int32),
-                np.dtype(np.int32),
-                "nearest-even",
-                None,
-                None,
+                np.dtype(np.float64),
+                [(np.int64(2), np.float64(99.0))],
             ),
-            expected=np.array([1, 2, 3], dtype=np.int32),
+            expected=np.array([1.0, 99.0, 3.0], dtype=np.float64),
         ),
         Expect(
-            id="int32-to-int8-in-range",
+            id="map-sentinel-to-nan",
             input=(
-                np.array([0, 127, -128], dtype=np.int32),
-                np.dtype(np.int8),
-                "nearest-even",
-                None,
-                None,
+                np.array([1, -999, 3], dtype=np.int32),
+                np.dtype(np.float64),
+                [(np.int64(-999), np.float64(np.nan))],
             ),
-            expected=np.array([0, 127, -128], dtype=np.int8),
+            expected=np.array([1.0, np.nan, 3.0], dtype=np.float64),
         ),
+        # --- empty array ---
         Expect(
-            id="int32-to-int8-clamp",
+            id="empty-array",
             input=(
-                np.array([0, 300, -200], dtype=np.int32),
-                np.dtype(np.int8),
-                "nearest-even",
-                "clamp",
+                np.array([], dtype=np.int32),
+                np.dtype(np.float64),
                 None,
             ),
-            expected=np.array([0, 127, -128], dtype=np.int8),
+            expected=np.array([], dtype=np.float64),
         ),
+    ],
+)
+def test_cast_array_int_to_float(
+    case: Expect[
+        tuple[np.ndarray, np.dtype, list[MapEntry] | None],
+        np.ndarray,
+    ],
+) -> None:
+    """Test cast_array for integer-to-float casts."""
+    arr, target_dtype, scalar_map_entries = case.input
+    result = _call_cast(
+        arr,
+        target_dtype=target_dtype,
+        scalar_map_entries=scalar_map_entries,
+    )
+    assert case.eq(result, case.expected)
+    assert result.dtype == case.expected.dtype
+
+
+# ---------------------------------------------------------------------------
+# cast_array: float → int
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        # --- all 5 rounding modes ---
         Expect(
-            id="int32-to-uint8-wrap",
-            input=(
-                np.array([256, -1], dtype=np.int32),
-                np.dtype(np.uint8),
-                "nearest-even",
-                "wrap",
-                None,
-            ),
-            expected=np.array([0, 255], dtype=np.uint8),
-        ),
-        Expect(
-            id="float64-to-int32-nearest-even",
+            id="nearest-even",
             input=(
                 np.array([1.5, 2.5, 3.7, -1.2], dtype=np.float64),
                 np.dtype(np.int32),
@@ -457,7 +767,7 @@ def test_extract_raw_map(
             expected=np.array([2, 2, 4, -1], dtype=np.int32),
         ),
         Expect(
-            id="float64-to-int32-towards-zero",
+            id="towards-zero",
             input=(
                 np.array([1.9, -1.9], dtype=np.float64),
                 np.dtype(np.int32),
@@ -468,7 +778,7 @@ def test_extract_raw_map(
             expected=np.array([1, -1], dtype=np.int32),
         ),
         Expect(
-            id="float64-to-int32-towards-positive",
+            id="towards-positive",
             input=(
                 np.array([1.1, -1.9], dtype=np.float64),
                 np.dtype(np.int32),
@@ -479,7 +789,7 @@ def test_extract_raw_map(
             expected=np.array([2, -1], dtype=np.int32),
         ),
         Expect(
-            id="float64-to-int32-towards-negative",
+            id="towards-negative",
             input=(
                 np.array([1.9, -1.1], dtype=np.float64),
                 np.dtype(np.int32),
@@ -490,7 +800,7 @@ def test_extract_raw_map(
             expected=np.array([1, -2], dtype=np.int32),
         ),
         Expect(
-            id="float64-to-int32-nearest-away",
+            id="nearest-away",
             input=(
                 np.array([0.5, -0.5, 1.5, -1.5], dtype=np.float64),
                 np.dtype(np.int32),
@@ -500,8 +810,9 @@ def test_extract_raw_map(
             ),
             expected=np.array([1, -1, 2, -2], dtype=np.int32),
         ),
+        # --- out_of_range ---
         Expect(
-            id="float64-to-int8-clamp",
+            id="clamp-int8",
             input=(
                 np.array([300.0, -300.0], dtype=np.float64),
                 np.dtype(np.int8),
@@ -512,7 +823,41 @@ def test_extract_raw_map(
             expected=np.array([127, -128], dtype=np.int8),
         ),
         Expect(
-            id="float32-to-int32-promotes-to-float64",
+            id="wrap-int8",
+            input=(
+                np.array([300.0, -300.0], dtype=np.float64),
+                np.dtype(np.int8),
+                "nearest-even",
+                "wrap",
+                None,
+            ),
+            expected=np.array([44, -44], dtype=np.int8),
+        ),
+        Expect(
+            id="clamp-uint8",
+            input=(
+                np.array([-1.5, 300.5], dtype=np.float64),
+                np.dtype(np.uint8),
+                "nearest-even",
+                "clamp",
+                None,
+            ),
+            expected=np.array([0, 255], dtype=np.uint8),
+        ),
+        Expect(
+            id="wrap-uint8",
+            input=(
+                np.array([256.0, -1.0], dtype=np.float64),
+                np.dtype(np.uint8),
+                "towards-zero",
+                "wrap",
+                None,
+            ),
+            expected=np.array([0, 255], dtype=np.uint8),
+        ),
+        # --- float32 source (promotes to float64 internally) ---
+        Expect(
+            id="float32-source-promotes",
             input=(
                 np.array([1.6, 2.4], dtype=np.float32),
                 np.dtype(np.int32),
@@ -522,41 +867,21 @@ def test_extract_raw_map(
             ),
             expected=np.array([2, 2], dtype=np.int32),
         ),
+        # --- exact integer values need no rounding ---
         Expect(
-            id="int-to-float-with-scalar-map",
+            id="exact-integers-no-rounding-needed",
             input=(
-                np.array([1, 2, 3], dtype=np.int32),
-                np.dtype(np.float64),
+                np.array([1.0, -2.0, 0.0], dtype=np.float64),
+                np.dtype(np.int32),
                 "nearest-even",
                 None,
-                [(np.int64(2), np.float64(99.0))],
-            ),
-            expected=np.array([1.0, 99.0, 3.0], dtype=np.float64),
-        ),
-        Expect(
-            id="float-to-float-with-scalar-map",
-            input=(
-                np.array([1.0, 2.0, 3.0], dtype=np.float64),
-                np.dtype(np.float32),
-                "nearest-even",
                 None,
-                [(np.float64(2.0), np.float64(99.0))],
             ),
-            expected=np.array([1.0, 99.0, 3.0], dtype=np.float32),
+            expected=np.array([1, -2, 0], dtype=np.int32),
         ),
+        # --- scalar_map ---
         Expect(
-            id="int-to-int-with-scalar-map",
-            input=(
-                np.array([1, 2, 3], dtype=np.int32),
-                np.dtype(np.int8),
-                "nearest-even",
-                None,
-                [(np.int64(2), np.int64(20))],
-            ),
-            expected=np.array([1, 20, 3], dtype=np.int8),
-        ),
-        Expect(
-            id="float-to-int-scalar-map-nan-to-zero",
+            id="map-nan-to-zero",
             input=(
                 np.array([1.0, np.nan, 3.0], dtype=np.float64),
                 np.dtype(np.int32),
@@ -567,38 +892,49 @@ def test_extract_raw_map(
             expected=np.array([1, 0, 3], dtype=np.int32),
         ),
         Expect(
-            id="int8-to-int64-widen",
+            id="map-inf-to-sentinel",
             input=(
-                np.array([1, 2], dtype=np.int8),
-                np.dtype(np.int64),
+                np.array([1.0, np.inf], dtype=np.float64),
+                np.dtype(np.int32),
                 "nearest-even",
                 None,
-                None,
+                [(np.float64(np.inf), np.float64(-1.0))],
             ),
-            expected=np.array([1, 2], dtype=np.int64),
+            expected=np.array([1, -1], dtype=np.int32),
         ),
         Expect(
-            id="int32-to-uint8-in-range",
+            id="map-neg-inf-to-sentinel",
             input=(
-                np.array([0, 100, 200], dtype=np.int32),
-                np.dtype(np.uint8),
+                np.array([-np.inf, 1.0], dtype=np.float64),
+                np.dtype(np.int32),
                 "nearest-even",
                 None,
-                None,
+                [(np.float64(-np.inf), np.float64(-1.0))],
             ),
-            expected=np.array([0, 100, 200], dtype=np.uint8),
+            expected=np.array([-1, 1], dtype=np.int32),
+        ),
+        Expect(
+            id="map-plus-clamp",
+            input=(
+                np.array([1.5, np.nan, 300.0], dtype=np.float64),
+                np.dtype(np.int8),
+                "nearest-even",
+                "clamp",
+                [(np.float64(np.nan), np.float64(0.0))],
+            ),
+            expected=np.array([2, 0, 127], dtype=np.int8),
         ),
     ],
 )
-def test_cast_array(
+def test_cast_array_float_to_int(
     case: Expect[
         tuple[np.ndarray, np.dtype, str, str | None, list[MapEntry] | None],
         np.ndarray,
     ],
 ) -> None:
-    """Test that cast_array produces the expected output for various type combinations."""
+    """Test cast_array for float-to-integer casts across rounding modes, out-of-range, and scalar_map."""
     arr, target_dtype, rounding_mode, out_of_range_mode, scalar_map_entries = case.input
-    result = cast_array(
+    result = _call_cast(
         arr,
         target_dtype=target_dtype,
         rounding_mode=rounding_mode,
@@ -613,19 +949,7 @@ def test_cast_array(
     "case",
     [
         ExpectFail(
-            id="int-narrowing-out-of-range-no-mode",
-            input=(
-                np.array([300], dtype=np.int32),
-                np.dtype(np.int8),
-                "nearest-even",
-                None,
-                None,
-            ),
-            err=ValueError,
-            msg="Values out of range",
-        ),
-        ExpectFail(
-            id="float-nan-to-int-no-scalar-map",
+            id="nan-no-map",
             input=(
                 np.array([np.nan], dtype=np.float64),
                 np.dtype(np.int32),
@@ -637,7 +961,7 @@ def test_cast_array(
             msg="Cannot cast NaN or Infinity",
         ),
         ExpectFail(
-            id="float-inf-to-int-no-scalar-map",
+            id="inf-no-map",
             input=(
                 np.array([np.inf], dtype=np.float64),
                 np.dtype(np.int32),
@@ -649,7 +973,7 @@ def test_cast_array(
             msg="Cannot cast NaN or Infinity",
         ),
         ExpectFail(
-            id="float-neg-inf-to-int-no-scalar-map",
+            id="neg-inf-no-map",
             input=(
                 np.array([-np.inf], dtype=np.float64),
                 np.dtype(np.int32),
@@ -660,20 +984,197 @@ def test_cast_array(
             err=ValueError,
             msg="Cannot cast NaN or Infinity",
         ),
+        ExpectFail(
+            id="nan-remains-after-partial-map",
+            input=(
+                np.array([np.nan, 1.0, np.nan], dtype=np.float64),
+                np.dtype(np.int32),
+                "nearest-even",
+                None,
+                [(np.float64(1.0), np.float64(2.0))],
+            ),
+            err=ValueError,
+            msg="Cannot cast NaN or Infinity",
+        ),
+        ExpectFail(
+            id="oor-after-rounding",
+            input=(
+                np.array([127.6], dtype=np.float64),
+                np.dtype(np.int8),
+                "towards-positive",
+                None,
+                None,
+            ),
+            err=ValueError,
+            msg="Values out of range",
+        ),
+        ExpectFail(
+            id="float32-nan-no-map",
+            input=(
+                np.array([np.nan], dtype=np.float32),
+                np.dtype(np.int32),
+                "nearest-even",
+                None,
+                None,
+            ),
+            err=ValueError,
+            msg="Cannot cast NaN or Infinity",
+        ),
     ],
 )
-def test_cast_array_fail(
+def test_cast_array_float_to_int_fail(
     case: ExpectFail[
         tuple[np.ndarray, np.dtype, str, str | None, list[MapEntry] | None]
     ],
 ) -> None:
-    """Test that cast_array raises ValueError for invalid casts."""
+    """Test that cast_array raises ValueError for invalid float-to-integer casts."""
     arr, target_dtype, rounding_mode, out_of_range_mode, scalar_map_entries = case.input
     with pytest.raises(case.err, match=case.msg):
-        cast_array(
+        _call_cast(
             arr,
             target_dtype=target_dtype,
             rounding_mode=rounding_mode,
             out_of_range_mode=out_of_range_mode,
             scalar_map_entries=scalar_map_entries,
         )
+
+
+# ---------------------------------------------------------------------------
+# cast_array: float → float
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        # --- narrowing ---
+        Expect(
+            id="narrow-float64-to-float32",
+            input=(
+                np.array([1.5, 2.5, 3.5], dtype=np.float64),
+                np.dtype(np.float32),
+                None,
+            ),
+            expected=np.array([1.5, 2.5, 3.5], dtype=np.float32),
+        ),
+        Expect(
+            id="narrow-float64-to-float16",
+            input=(
+                np.array([1.0, 0.5, -0.25], dtype=np.float64),
+                np.dtype(np.float16),
+                None,
+            ),
+            expected=np.array([1.0, 0.5, -0.25], dtype=np.float16),
+        ),
+        # --- widening ---
+        Expect(
+            id="widen-float32-to-float64",
+            input=(
+                np.array([1.0, 2.0], dtype=np.float32),
+                np.dtype(np.float64),
+                None,
+            ),
+            expected=np.array([1.0, 2.0], dtype=np.float64),
+        ),
+        Expect(
+            id="widen-float16-to-float64",
+            input=(
+                np.array([1.0, -1.0], dtype=np.float16),
+                np.dtype(np.float64),
+                None,
+            ),
+            expected=np.array([1.0, -1.0], dtype=np.float64),
+        ),
+        # --- identity ---
+        Expect(
+            id="same-float32-to-float32",
+            input=(
+                np.array([1.0, 2.0], dtype=np.float32),
+                np.dtype(np.float32),
+                None,
+            ),
+            expected=np.array([1.0, 2.0], dtype=np.float32),
+        ),
+        # --- special values ---
+        Expect(
+            id="nan-propagates",
+            input=(
+                np.array([1.0, np.nan, 3.0], dtype=np.float64),
+                np.dtype(np.float32),
+                None,
+            ),
+            expected=np.array([1.0, np.nan, 3.0], dtype=np.float32),
+        ),
+        Expect(
+            id="inf-propagates",
+            input=(
+                np.array([np.inf, -np.inf, 1.0], dtype=np.float64),
+                np.dtype(np.float32),
+                None,
+            ),
+            expected=np.array([np.inf, -np.inf, 1.0], dtype=np.float32),
+        ),
+        Expect(
+            id="signed-zero-preserved",
+            input=(
+                np.array([-0.0, 0.0], dtype=np.float64),
+                np.dtype(np.float32),
+                None,
+            ),
+            expected=np.array([-0.0, 0.0], dtype=np.float32),
+        ),
+        # --- with scalar_map ---
+        Expect(
+            id="with-scalar-map",
+            input=(
+                np.array([1.0, 2.0, 3.0], dtype=np.float64),
+                np.dtype(np.float32),
+                [(np.float64(2.0), np.float64(99.0))],
+            ),
+            expected=np.array([1.0, 99.0, 3.0], dtype=np.float32),
+        ),
+        Expect(
+            id="map-nan-to-value",
+            input=(
+                np.array([np.nan, 1.0], dtype=np.float64),
+                np.dtype(np.float32),
+                [(np.float64(np.nan), np.float64(-1.0))],
+            ),
+            expected=np.array([-1.0, 1.0], dtype=np.float32),
+        ),
+        Expect(
+            id="map-inf-to-value",
+            input=(
+                np.array([np.inf, 1.0], dtype=np.float64),
+                np.dtype(np.float32),
+                [(np.float64(np.inf), np.float64(0.0))],
+            ),
+            expected=np.array([0.0, 1.0], dtype=np.float32),
+        ),
+        # --- empty array ---
+        Expect(
+            id="empty-array",
+            input=(
+                np.array([], dtype=np.float64),
+                np.dtype(np.float32),
+                None,
+            ),
+            expected=np.array([], dtype=np.float32),
+        ),
+    ],
+)
+def test_cast_array_float_to_float(
+    case: Expect[
+        tuple[np.ndarray, np.dtype, list[MapEntry] | None],
+        np.ndarray,
+    ],
+) -> None:
+    """Test cast_array for float-to-float casts including special values and scalar_map."""
+    arr, target_dtype, scalar_map_entries = case.input
+    result = _call_cast(
+        arr,
+        target_dtype=target_dtype,
+        scalar_map_entries=scalar_map_entries,
+    )
+    assert case.eq(result, case.expected)
+    assert result.dtype == case.expected.dtype
