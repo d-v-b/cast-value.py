@@ -15,6 +15,8 @@ and should be ignored as needed.
 - `TypedDict`s are preferred over classes.
 - Functions are preferred over methods.
 - Accurate type annotations for everything.
+- Never use the `Any` type. Always look for a more accurate alternative, like
+  `object`.
 
 ## Architecture
 
