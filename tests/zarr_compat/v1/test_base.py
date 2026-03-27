@@ -15,7 +15,6 @@ from zarr.core.dtype import get_data_type_from_json
 from cast_value.zarr_compat.v1 import CastValue, parse_map_entries
 from zarr_compat.v1._helpers import arrays_bytes_equal, make_spec
 
-
 # ---------------------------------------------------------------------------
 # from_dict / to_dict
 # ---------------------------------------------------------------------------

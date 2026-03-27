@@ -7,13 +7,15 @@ by both the numpy and rust backend test modules.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from conftest import Expect
 
-from cast_value.zarr_compat.v1 import CastValueBase
 from zarr_compat.v1._helpers import arrays_bytes_equal
+
+if TYPE_CHECKING:
+    from cast_value.zarr_compat.v1 import CastValueBase
 
 
 def encode_cases(

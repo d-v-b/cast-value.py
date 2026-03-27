@@ -41,13 +41,16 @@ jobs:
         run: uvx nox -s pylint -- --output-format=github
 
   checks:
-    name: Check Python ${{ matrix.python-version }} on ${{ matrix.runs-on }}
+    name: >-
+      Test Python ${{ matrix.python-version }} on ${{ matrix.runs-on }} (${{
+      matrix.deps }})
     runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.14"]
-        runs-on: [ubuntu-latest, windows-latest, macos-latest, macos-15-intel]
+        python-version: ["3.11", "3.14"]
+        runs-on: [ubuntu-latest, windows-latest, macos-latest]
+        deps: [base, rust]
 
     steps:
       - uses: actions/checkout@v6
@@ -61,8 +64,13 @@ jobs:
 
       - uses: astral-sh/setup-uv@v7
 
-      - name: Install package
-        run: uv sync
+      - name: Install package (base)
+        if: matrix.deps == 'base'
+        run: uv sync --group test
+
+      - name: Install package (rust)
+        if: matrix.deps == 'rust'
+        run: uv sync --group test-rust
 
       - name: Test package
         run: >-

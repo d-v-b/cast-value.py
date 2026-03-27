@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from zarr.core.array_spec import ArrayConfig, ArraySpec
 from zarr.core.buffer import NDBuffer, default_buffer_prototype
 from zarr.core.dtype import get_data_type_from_json
 
-from cast_value.zarr_compat.v1 import CastValueBase
+if TYPE_CHECKING:
+    from cast_value.zarr_compat.v1 import CastValueBase
 
 
 def make_spec(

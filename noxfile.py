@@ -43,11 +43,13 @@ def pylint(session: nox.Session) -> None:
 
 
 @nox.session
-def tests(session: nox.Session) -> None:
+@nox.parametrize("rust", [False, True], ids=["base", "rust"])
+def tests(session: nox.Session, rust: bool) -> None:
     """
     Run the unit and regular tests.
     """
-    test_deps = nox.project.dependency_groups(PROJECT, "test")
+    group = "test-rust" if rust else "test"
+    test_deps = nox.project.dependency_groups(PROJECT, group)
     session.install("-e.", *test_deps)
     session.run("pytest", *session.posargs)
 

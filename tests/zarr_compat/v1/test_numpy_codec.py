@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
 from cast_value.zarr_compat.v1 import CastValueNumpy

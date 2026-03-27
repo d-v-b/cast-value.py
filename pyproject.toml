@@ -34,6 +34,9 @@ dependencies = [
     "zarr>=3.1.6",
 ]
 
+[project.optional-dependencies]
+rust = ["cast-value-rs"]
+
 [project.urls]
 Homepage = "https://github.com/zarr-developers/cast-value"
 "Bug Tracker" = "https://github.com/zarr-developers/cast-value/issues"
@@ -46,8 +49,12 @@ test = [
   "pytest >=9",
   "pytest-cov >=7",
 ]
-dev = [
+test-rust = [
   { include-group = "test" },
+  "cast-value-rs",
+]
+dev = [
+  { include-group = "test-rust" },
 ]
 docs = [
     "markdown>=3.9",
