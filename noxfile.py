@@ -38,17 +38,17 @@ def pylint(session: nox.Session) -> None:
     """
     # This needs to be installed into the package environment, and is slower
     # than a pre-commit check
-    session.install("-e.[rust]", "pylint>=3.2")
+    session.install("-e.[rs]", "pylint>=3.2")
     session.run("pylint", "cast_value", *session.posargs)
 
 
 @nox.session
-@nox.parametrize("rust", [False, True], ids=["base", "rust"])
-def tests(session: nox.Session, rust: bool) -> None:
+@nox.parametrize("rs", [False, True], ids=["base", "rs"])
+def tests(session: nox.Session, rs: bool) -> None:
     """
     Run the unit and regular tests.
     """
-    group = "test-rust" if rust else "test"
+    group = "test-rs" if rs else "test"
     test_deps = nox.project.dependency_groups(PROJECT, group)
     session.install("-e.", *test_deps)
     session.run("pytest", *session.posargs)

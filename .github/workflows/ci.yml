@@ -50,7 +50,7 @@ jobs:
       matrix:
         python-version: ["3.11", "3.14"]
         runs-on: [ubuntu-latest, windows-latest, macos-latest]
-        deps: [base, rust]
+        deps: [base, rs]
 
     steps:
       - uses: actions/checkout@v6
@@ -68,9 +68,9 @@ jobs:
         if: matrix.deps == 'base'
         run: uv sync --group test
 
-      - name: Install package (rust)
-        if: matrix.deps == 'rust'
-        run: uv sync --group test-rust
+      - name: Install package (rs)
+        if: matrix.deps == 'rs'
+        run: uv sync --group test-rs
 
       - name: Test package
         run: >-
