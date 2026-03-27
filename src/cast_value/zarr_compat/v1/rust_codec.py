@@ -46,7 +46,9 @@ class CastValueRust(CastValueBase):
         target_dtype: np.dtype[Any],
         scalar_map_entries: list[MapEntry] | None,
     ) -> np.ndarray[Any, np.dtype[Any]]:
-        from cast_value_rs import cast_array as rs_cast_array  # noqa: PLC0415
+        from cast_value_rs import (  # noqa: PLC0415  # pylint: disable=import-outside-toplevel
+            cast_array as rs_cast_array,
+        )
 
         return rs_cast_array(
             arr=arr,
