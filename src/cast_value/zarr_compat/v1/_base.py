@@ -1,3 +1,5 @@
+"""Base class and helpers for the cast_value zarr codec (v1 API)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
@@ -8,7 +10,7 @@ from zarr.abc.codec import ArrayArrayCodec
 from zarr.core.common import JSON, parse_named_configuration
 from zarr.core.dtype import get_data_type_from_json
 
-from cast_value.core import cast_array, extract_raw_map
+from cast_value.core import extract_raw_map
 
 if TYPE_CHECKING:
     from typing import Self
@@ -18,10 +20,15 @@ if TYPE_CHECKING:
     from zarr.core.chunk_grids import ChunkGrid
     from zarr.core.dtype.wrapper import TBaseDType, TBaseScalar, ZDType
 
-    from cast_value.types import MapEntry, OutOfRangeMode, RoundingMode, ScalarMapJSON
+    from cast_value.types import (
+        MapEntry,
+        OutOfRangeMode,
+        RoundingMode,
+        ScalarMapJSON,
+    )
 
 
-def _parse_map_entries(
+def parse_map_entries(
     mapping: dict[str, str],
     src_dtype: ZDType[TBaseDType, TBaseScalar],
     tgt_dtype: ZDType[TBaseDType, TBaseScalar],
@@ -40,11 +47,12 @@ def _parse_map_entries(
 
 
 @dataclass(frozen=True)
-class CastValue(ArrayArrayCodec):
-    """Cast-value array-to-array codec.
+class CastValueBase(ArrayArrayCodec):
+    """Base class for cast-value array-to-array codecs.
 
-    Value-converts array elements to a new data type during encoding,
-    and back to the original data type during decoding.
+    Subclasses must implement ``_cast_array`` to provide the actual
+    array casting logic. Everything else — metadata handling, validation,
+    serialization — is shared.
 
     Parameters
     ----------
@@ -123,6 +131,16 @@ class CastValue(ArrayArrayCodec):
             msg = "out_of_range='wrap' is only valid for integer target types."
             raise ValueError(msg)
 
+    def _cast_array(
+        self,
+        arr: np.ndarray,
+        *,
+        target_dtype: np.dtype,
+        scalar_map_entries: list[MapEntry] | None,
+    ) -> np.ndarray:
+        """Cast *arr* to *target_dtype*. Subclasses must override this."""
+        raise NotImplementedError
+
     def resolve_metadata(self, chunk_spec: ArraySpec) -> ArraySpec:
         target_zdtype = self.dtype
         target_native = target_zdtype.to_native_dtype()
@@ -133,16 +151,14 @@ class CastValue(ArrayArrayCodec):
 
         encode_raw = extract_raw_map(self.scalar_map, "encode")
         encode_entries = (
-            _parse_map_entries(encode_raw, chunk_spec.dtype, self.dtype)
+            parse_map_entries(encode_raw, chunk_spec.dtype, self.dtype)
             if encode_raw
             else None
         )
 
-        new_fill_arr = cast_array(
+        new_fill_arr = self._cast_array(
             fill_arr,
             target_dtype=target_native,
-            rounding_mode=self.rounding,
-            out_of_range_mode=self.out_of_range,
             scalar_map_entries=encode_entries,
         )
         new_fill = target_native.type(new_fill_arr[0])
@@ -159,16 +175,14 @@ class CastValue(ArrayArrayCodec):
 
         encode_raw = extract_raw_map(self.scalar_map, "encode")
         encode_entries = (
-            _parse_map_entries(encode_raw, _chunk_spec.dtype, self.dtype)
+            parse_map_entries(encode_raw, _chunk_spec.dtype, self.dtype)
             if encode_raw
             else None
         )
 
-        result = cast_array(
+        result = self._cast_array(
             np.asarray(arr),
             target_dtype=target_native,
-            rounding_mode=self.rounding,
-            out_of_range_mode=self.out_of_range,
             scalar_map_entries=encode_entries,
         )
         return chunk_array.__class__.from_ndarray_like(result)  # ty: ignore[invalid-argument-type]
@@ -190,16 +204,14 @@ class CastValue(ArrayArrayCodec):
 
         decode_raw = extract_raw_map(self.scalar_map, "decode")
         decode_entries = (
-            _parse_map_entries(decode_raw, self.dtype, chunk_spec.dtype)
+            parse_map_entries(decode_raw, self.dtype, chunk_spec.dtype)
             if decode_raw
             else None
         )
 
-        result = cast_array(
+        result = self._cast_array(
             np.asarray(arr),
             target_dtype=target_native,
-            rounding_mode=self.rounding,
-            out_of_range_mode=self.out_of_range,
             scalar_map_entries=decode_entries,
         )
         return chunk_array.__class__.from_ndarray_like(result)  # ty: ignore[invalid-argument-type]

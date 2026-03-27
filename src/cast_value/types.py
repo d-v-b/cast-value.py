@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, Literal, NotRequired, TypeAlias, TypedDict
+from typing import Literal, NotRequired, TypeAlias, TypedDict
 
 import numpy as np
 
-NumericScalar: TypeAlias = np.integer[Any] | np.floating[Any]
+NumericScalar: TypeAlias = np.integer | np.floating
 
 RoundingMode = Literal[
     "nearest-even",

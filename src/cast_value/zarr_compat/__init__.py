@@ -9,6 +9,6 @@ except ImportError as e:
     )
     raise ImportError(_MSG) from e
 
-from cast_value.zarr_compat.v1 import CastValue
+from cast_value.zarr_compat.v1 import CastValue, CastValueNumpy, CastValueRust
 
-__all__ = ["CastValue"]
+__all__ = ["CastValue", "CastValueNumpy", "CastValueRust"]

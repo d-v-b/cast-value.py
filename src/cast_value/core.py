@@ -1,16 +1,19 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 
 if TYPE_CHECKING:
-    from cast_value.types import MapEntry, OutOfRangeMode, RoundingMode, ScalarMapJSON
+    from cast_value.types import (
+        MapEntry,
+        OutOfRangeMode,
+        RoundingMode,
+        ScalarMapJSON,
+    )
 
 
-def apply_scalar_map(
-    work: np.ndarray[Any, np.dtype[Any]], entries: list[MapEntry]
-) -> None:
+def apply_scalar_map(work: np.ndarray, entries: list[MapEntry]) -> None:
     """Apply scalar map entries in-place. Single pass per entry."""
     for src, tgt in entries:
         if isinstance(src, (float, np.floating)) and np.isnan(src):
@@ -20,9 +23,7 @@ def apply_scalar_map(
         work[mask] = tgt
 
 
-def round_inplace(
-    arr: np.ndarray[Any, np.dtype[Any]], mode: RoundingMode
-) -> np.ndarray[Any, np.dtype[Any]]:
+def round_inplace(arr: np.ndarray, mode: RoundingMode) -> np.ndarray:
     """Round array, returning result (may or may not be a new array).
 
     For nearest-away, requires 3 numpy ops. All others are a single op.
@@ -43,13 +44,13 @@ def round_inplace(
 
 
 def cast_array(
-    arr: np.ndarray[Any, np.dtype[Any]],
+    arr: np.ndarray,
     *,
-    target_dtype: np.dtype[Any],
+    target_dtype: np.dtype,
     rounding_mode: RoundingMode,
     out_of_range_mode: OutOfRangeMode | None,
     scalar_map_entries: list[MapEntry] | None,
-) -> np.ndarray[Any, np.dtype[Any]]:
+) -> np.ndarray:
     """Cast an array to target_dtype with rounding, out-of-range, and scalar_map handling.
 
     Optimized to minimize allocations and passes over the data.
@@ -71,11 +72,11 @@ def cast_array(
 
 
 def check_int_range(
-    work: np.ndarray[Any, np.dtype[Any]],
+    work: np.ndarray,
     *,
-    target_dtype: np.dtype[Any],
+    target_dtype: np.dtype,
     out_of_range: OutOfRangeMode | None,
-) -> np.ndarray[Any, np.dtype[Any]]:
+) -> np.ndarray:
     """Check integer range and apply out-of-range handling, then cast."""
     info = np.iinfo(target_dtype)
     lo, hi = int(info.min), int(info.max)
@@ -100,10 +101,10 @@ def check_int_range(
 
 
 def _cast_float(
-    arr: np.ndarray[Any, np.dtype[Any]],
-    target_dtype: np.dtype[Any],
+    arr: np.ndarray,
+    target_dtype: np.dtype,
     rounding: RoundingMode,
-) -> np.ndarray[Any, np.dtype[Any]]:
+) -> np.ndarray:
     """Cast a float (or int) array to a float target dtype, respecting the rounding mode.
 
     numpy's ``astype`` always uses nearest-even. For other rounding modes we
@@ -161,13 +162,13 @@ def _cast_float(
 
 
 def _cast_array_impl(
-    arr: np.ndarray[Any, np.dtype[Any]],
+    arr: np.ndarray,
     *,
-    target_dtype: np.dtype[Any],
+    target_dtype: np.dtype,
     rounding: RoundingMode,
     out_of_range: OutOfRangeMode | None,
     scalar_map_entries: list[MapEntry] | None,
-) -> np.ndarray[Any, np.dtype[Any]]:
+) -> np.ndarray:
     src_type: Literal["int", "float"] = (
         "int" if np.issubdtype(arr.dtype, np.integer) else "float"
     )

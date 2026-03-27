@@ -1,3 +1,5 @@
+"""Tests for CastValueBase — shared behavior independent of backend."""
+
 from __future__ import annotations
 
 import asyncio
@@ -6,221 +8,12 @@ from typing import Any
 import numpy as np
 import pytest
 from conftest import Expect, ExpectFail
-from zarr.core.array_spec import ArrayConfig, ArraySpec
-from zarr.core.buffer import NDBuffer, default_buffer_prototype
+from zarr.core.buffer import NDBuffer
 from zarr.core.chunk_grids import RegularChunkGrid
 from zarr.core.dtype import get_data_type_from_json
 
-from cast_value.zarr_compat import CastValue
-from cast_value.zarr_compat.v1 import _parse_map_entries
-
-
-def _make_spec(
-    dtype_str: str, fill_value: Any, shape: tuple[int, ...] = (4,)
-) -> ArraySpec:
-    """Create an ArraySpec for testing."""
-    zdtype = get_data_type_from_json(dtype_str, zarr_format=3)
-    return ArraySpec(
-        shape=shape,
-        dtype=zdtype,
-        fill_value=fill_value,
-        config=ArrayConfig(order="C", write_empty_chunks=False),
-        prototype=default_buffer_prototype(),
-    )
-
-
-def _encode(
-    codec: CastValue,
-    arr: np.ndarray,
-    source_dtype_str: str,
-    fill_value: Any = 0,
-) -> np.ndarray:
-    """Encode a numpy array through a CastValue codec, return the result as ndarray."""
-    spec = _make_spec(source_dtype_str, fill_value, shape=arr.shape)
-    buf = NDBuffer.from_ndarray_like(arr)  # ty: ignore[invalid-argument-type]
-    encoded = codec._encode_sync(buf, spec)
-    assert encoded is not None
-    return np.asarray(encoded.as_ndarray_like())
-
-
-def _decode(
-    codec: CastValue,
-    arr: np.ndarray,
-    source_dtype_str: str,
-    fill_value: Any = 0,
-) -> np.ndarray:
-    """Decode a numpy array through a CastValue codec, return the result as ndarray."""
-    spec = _make_spec(source_dtype_str, fill_value, shape=arr.shape)
-    buf = NDBuffer.from_ndarray_like(arr)  # ty: ignore[invalid-argument-type]
-    decoded = codec._decode_sync(buf, spec)
-    return np.asarray(decoded.as_ndarray_like())
-
-
-def _arrays_bytes_equal(a: np.ndarray, b: np.ndarray) -> bool:
-    """Byte-level array comparison."""
-    if a.shape != b.shape or a.dtype != b.dtype:
-        return False
-    return (a.view(np.uint8) == b.view(np.uint8)).all().item()
-
-
-# ---------------------------------------------------------------------------
-# encode
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    "case",
-    [
-        Expect(
-            id="int32-to-uint8",
-            input=(
-                CastValue(data_type="uint8"),
-                np.array([1, 2, 3, 4], dtype=np.int32),
-                "int32",
-            ),
-            expected=np.array([1, 2, 3, 4], dtype=np.uint8),
-            eq=_arrays_bytes_equal,
-        ),
-        Expect(
-            id="float64-to-float32",
-            input=(
-                CastValue(data_type="float32"),
-                np.array([1.5, 2.5], dtype=np.float64),
-                "float64",
-            ),
-            expected=np.array([1.5, 2.5], dtype=np.float32),
-            eq=_arrays_bytes_equal,
-        ),
-        Expect(
-            id="float64-to-int32-nearest-even",
-            input=(
-                CastValue(data_type="int32", rounding="nearest-even"),
-                np.array([1.5, 2.5], dtype=np.float64),
-                "float64",
-            ),
-            expected=np.array([2, 2], dtype=np.int32),
-            eq=_arrays_bytes_equal,
-        ),
-        Expect(
-            id="int32-to-int8-clamp",
-            input=(
-                CastValue(data_type="int8", out_of_range="clamp"),
-                np.array([300, -200], dtype=np.int32),
-                "int32",
-            ),
-            expected=np.array([127, -128], dtype=np.int8),
-            eq=_arrays_bytes_equal,
-        ),
-        Expect(
-            id="int32-to-uint8-wrap",
-            input=(
-                CastValue(data_type="uint8", out_of_range="wrap"),
-                np.array([256, -1], dtype=np.int32),
-                "int32",
-            ),
-            expected=np.array([0, 255], dtype=np.uint8),
-            eq=_arrays_bytes_equal,
-        ),
-    ],
-)
-def test_encode(
-    case: Expect[tuple[CastValue, np.ndarray, str], np.ndarray],
-) -> None:
-    """Test that CastValue.encode produces expected dtype and values."""
-    codec, arr, source_dtype_str = case.input
-    result = _encode(codec, arr, source_dtype_str)
-    assert case.eq(result, case.expected)
-
-
-# ---------------------------------------------------------------------------
-# decode
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    "case",
-    [
-        Expect(
-            id="uint8-to-int32",
-            input=(
-                CastValue(data_type="uint8"),
-                np.array([1, 2, 3], dtype=np.uint8),
-                "int32",
-            ),
-            expected=np.array([1, 2, 3], dtype=np.int32),
-            eq=_arrays_bytes_equal,
-        ),
-        Expect(
-            id="float32-to-float64",
-            input=(
-                CastValue(data_type="float32"),
-                np.array([1.5, 2.5], dtype=np.float32),
-                "float64",
-            ),
-            expected=np.array([1.5, 2.5], dtype=np.float64),
-            eq=_arrays_bytes_equal,
-        ),
-    ],
-)
-def test_decode(
-    case: Expect[tuple[CastValue, np.ndarray, str], np.ndarray],
-) -> None:
-    """Test that CastValue.decode produces expected dtype and values."""
-    codec, arr, source_dtype_str = case.input
-    result = _decode(codec, arr, source_dtype_str)
-    assert case.eq(result, case.expected)
-
-
-# ---------------------------------------------------------------------------
-# encode/decode roundtrip
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    "case",
-    [
-        Expect(
-            id="int32-to-uint8",
-            input=("int32", "uint8", np.array([1, 2, 3, 4], dtype=np.int32)),
-            expected=np.array([1, 2, 3, 4], dtype=np.int32),
-            eq=_arrays_bytes_equal,
-        ),
-        Expect(
-            id="int32-to-int64",
-            input=("int32", "int64", np.array([1, 2, 3], dtype=np.int32)),
-            expected=np.array([1, 2, 3], dtype=np.int32),
-            eq=_arrays_bytes_equal,
-        ),
-        Expect(
-            id="float64-to-float32",
-            input=("float64", "float32", np.array([1.5, 2.5], dtype=np.float64)),
-            expected=np.array([1.5, 2.5], dtype=np.float64),
-            eq=_arrays_bytes_equal,
-        ),
-        Expect(
-            id="int16-to-float32",
-            input=("int16", "float32", np.array([1, 2, 3], dtype=np.int16)),
-            expected=np.array([1, 2, 3], dtype=np.int16),
-            eq=_arrays_bytes_equal,
-        ),
-        Expect(
-            id="float64-to-int32-exact-integers",
-            input=("float64", "int32", np.array([1.0, 2.0, 3.0], dtype=np.float64)),
-            expected=np.array([1.0, 2.0, 3.0], dtype=np.float64),
-            eq=_arrays_bytes_equal,
-        ),
-    ],
-)
-def test_encode_decode_roundtrip(
-    case: Expect[tuple[str, str, np.ndarray], np.ndarray],
-) -> None:
-    """Test that encoding then decoding recovers the original values."""
-    source_dtype_str, target_dtype_str, arr = case.input
-    codec = CastValue(data_type=target_dtype_str)
-    encoded = _encode(codec, arr, source_dtype_str)
-    decoded = _decode(codec, encoded, source_dtype_str)
-    assert case.eq(decoded, case.expected)
-
+from cast_value.zarr_compat.v1 import CastValue, parse_map_entries
+from zarr_compat.v1._helpers import arrays_bytes_equal, make_spec
 
 # ---------------------------------------------------------------------------
 # from_dict / to_dict
@@ -401,7 +194,7 @@ def test_resolve_metadata(
     """Test that resolve_metadata transforms fill_value and dtype correctly."""
     source_dtype_str, target_dtype_str, fill_value = case.input
     codec = CastValue(data_type=target_dtype_str)
-    spec = _make_spec(source_dtype_str, fill_value)
+    spec = make_spec(source_dtype_str, fill_value)
     result = codec.resolve_metadata(spec)
     expected_dtype, expected_fill = case.expected
     assert result.dtype.to_native_dtype() == expected_dtype
@@ -409,55 +202,7 @@ def test_resolve_metadata(
 
 
 # ---------------------------------------------------------------------------
-# encode with scalar_map
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    "case",
-    [
-        Expect(
-            id="encode-maps-value",
-            input=(
-                CastValue(
-                    data_type="float32",
-                    scalar_map={"encode": [("1", "99")]},
-                ),
-                np.array([1, 2, 3], dtype=np.int32),
-                "int32",
-            ),
-            expected=np.array([99.0, 2.0, 3.0], dtype=np.float32),
-            eq=_arrays_bytes_equal,
-        ),
-        Expect(
-            id="decode-maps-value",
-            input=(
-                CastValue(
-                    data_type="float32",
-                    scalar_map={"decode": [("99", "1")]},
-                ),
-                np.array([99.0, 2.0, 3.0], dtype=np.float32),
-                "int32",
-            ),
-            expected=np.array([1, 2, 3], dtype=np.int32),
-            eq=_arrays_bytes_equal,
-        ),
-    ],
-)
-def test_scalar_map(
-    case: Expect[tuple[CastValue, np.ndarray, str], np.ndarray],
-) -> None:
-    """Test encode and decode with scalar_map parameter."""
-    codec, arr, source_dtype_str = case.input
-    if "encode" in (case.id):
-        result = _encode(codec, arr, source_dtype_str)
-    else:
-        result = _decode(codec, arr, source_dtype_str)
-    assert case.eq(result, case.expected)
-
-
-# ---------------------------------------------------------------------------
-# _parse_map_entries
+# parse_map_entries
 # ---------------------------------------------------------------------------
 
 
@@ -496,11 +241,11 @@ def test_scalar_map(
 def test_parse_map_entries(
     case: Expect[tuple[dict[str, str], str, str], list],
 ) -> None:
-    """Test that _parse_map_entries deserializes scalar mappings via zarr dtypes."""
+    """Test that parse_map_entries deserializes scalar mappings via zarr dtypes."""
     mapping, src_dtype_str, tgt_dtype_str = case.input
     src_zdtype = get_data_type_from_json(src_dtype_str, zarr_format=3)
     tgt_zdtype = get_data_type_from_json(tgt_dtype_str, zarr_format=3)
-    result = _parse_map_entries(mapping, src_zdtype, tgt_zdtype)
+    result = parse_map_entries(mapping, src_zdtype, tgt_zdtype)
     assert len(result) == len(case.expected)
     for (rs, rt), (es, et) in zip(result, case.expected, strict=True):
         assert rs == es
@@ -538,13 +283,13 @@ def test_compute_encoded_size(
     """Test that compute_encoded_size calculates byte length correctly."""
     source_dtype_str, target_dtype_str, input_bytes = case.input
     codec = CastValue(data_type=target_dtype_str)
-    spec = _make_spec(source_dtype_str, 0)
+    spec = make_spec(source_dtype_str, 0)
     result = codec.compute_encoded_size(input_bytes, spec)
     assert result == case.expected
 
 
 # ---------------------------------------------------------------------------
-# __init__ with ZDType (non-string data_type)
+# __init__ with ZDType
 # ---------------------------------------------------------------------------
 
 
@@ -571,7 +316,7 @@ def test_init_with_zdtype() -> None:
                 "int32",
             ),
             expected=np.array([1, 2, 3, 4], dtype=np.uint8),
-            eq=_arrays_bytes_equal,
+            eq=arrays_bytes_equal,
         ),
     ],
 )
@@ -580,7 +325,7 @@ def test_encode_single(
 ) -> None:
     """Test that the async _encode_single path produces the same result as sync."""
     codec, arr, source_dtype_str = case.input
-    spec = _make_spec(source_dtype_str, 0, shape=arr.shape)
+    spec = make_spec(source_dtype_str, 0, shape=arr.shape)
     buf = NDBuffer.from_ndarray_like(arr)  # ty: ignore[invalid-argument-type]
     result_buf = asyncio.run(codec._encode_single(buf, spec))
     assert result_buf is not None
@@ -599,7 +344,7 @@ def test_encode_single(
                 "int32",
             ),
             expected=np.array([1, 2, 3], dtype=np.int32),
-            eq=_arrays_bytes_equal,
+            eq=arrays_bytes_equal,
         ),
     ],
 )
@@ -608,7 +353,7 @@ def test_decode_single(
 ) -> None:
     """Test that the async _decode_single path produces the same result as sync."""
     codec, arr, source_dtype_str = case.input
-    spec = _make_spec(source_dtype_str, 0, shape=arr.shape)
+    spec = make_spec(source_dtype_str, 0, shape=arr.shape)
     buf = NDBuffer.from_ndarray_like(arr)  # ty: ignore[invalid-argument-type]
     result_buf = asyncio.run(codec._decode_single(buf, spec))
     result = np.asarray(result_buf.as_ndarray_like())
