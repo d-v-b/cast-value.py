@@ -6,6 +6,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "v*"
   release:
     types:
       - published
@@ -30,6 +32,32 @@ jobs:
           fetch-depth: 0
 
       - uses: hynek/build-and-inspect-python-package@v2
+
+  publish-testpypi:
+    needs: [dist]
+    name: Publish to TestPyPI
+    environment: testpypi
+    permissions:
+      id-token: write
+      attestations: write
+      contents: read
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: Packages
+          path: dist
+
+      - name: Generate artifact attestation for sdist and wheel
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: "dist/*"
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
 
   publish:
     needs: [dist]
