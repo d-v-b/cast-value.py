@@ -28,6 +28,8 @@ SIZES = [
 
 CastFn = Callable[..., np.ndarray]
 
+_rng = np.random.default_rng(42)
+
 
 def _numpy_cast(
     arr: np.ndarray,
@@ -83,7 +85,7 @@ def cast_fn(request: pytest.FixtureRequest) -> CastFn:
 @pytest.mark.parametrize("size", SIZES)
 def test_int_to_int_clamp(benchmark, cast_fn, size):
     """Benchmark int32 -> int8 with clamp."""
-    arr = np.random.randint(-200, 300, size=size, dtype=np.int32)
+    arr = _rng.integers(-200, 300, size=size, dtype=np.int32)
     benchmark(cast_fn, arr, "int8", out_of_range_mode="clamp")
 
 
@@ -95,7 +97,7 @@ def test_int_to_int_clamp(benchmark, cast_fn, size):
 @pytest.mark.parametrize("size", SIZES)
 def test_float_to_int_round(benchmark, cast_fn, size):
     """Benchmark float64 -> int32 with nearest-even rounding."""
-    arr = np.random.uniform(-1000, 1000, size=size).astype(np.float64)
+    arr = _rng.uniform(-1000, 1000, size=size).astype(np.float64)
     benchmark(cast_fn, arr, "int32", rounding_mode="nearest-even")
 
 
@@ -107,7 +109,7 @@ def test_float_to_int_round(benchmark, cast_fn, size):
 @pytest.mark.parametrize("size", SIZES)
 def test_float_to_float_narrow(benchmark, cast_fn, size):
     """Benchmark float64 -> float32 narrowing."""
-    arr = np.random.uniform(-100, 100, size=size).astype(np.float64)
+    arr = _rng.uniform(-100, 100, size=size).astype(np.float64)
     benchmark(cast_fn, arr, "float32")
 
 
@@ -119,7 +121,7 @@ def test_float_to_float_narrow(benchmark, cast_fn, size):
 @pytest.mark.parametrize("size", SIZES)
 def test_float_to_float_towards_zero(benchmark, cast_fn, size):
     """Benchmark float64 -> float32 with towards-zero rounding."""
-    arr = np.random.uniform(-100, 100, size=size).astype(np.float64)
+    arr = _rng.uniform(-100, 100, size=size).astype(np.float64)
     benchmark(cast_fn, arr, "float32", rounding_mode="towards-zero")
 
 
@@ -131,7 +133,7 @@ def test_float_to_float_towards_zero(benchmark, cast_fn, size):
 @pytest.mark.parametrize("size", SIZES)
 def test_int_to_float_widen(benchmark, cast_fn, size):
     """Benchmark int16 -> float64 widening."""
-    arr = np.random.randint(-1000, 1000, size=size, dtype=np.int16)
+    arr = _rng.integers(-1000, 1000, size=size, dtype=np.int16)
     benchmark(cast_fn, arr, "float64")
 
 
@@ -142,7 +144,7 @@ def test_int_to_float_widen(benchmark, cast_fn, size):
 
 def _make_scalar_map_array(size: int) -> np.ndarray:
     """Create a float64 array starting at 3.0 with NaN, +Inf, -Inf sprinkled in."""
-    arr = np.random.uniform(3, 1000, size=size).astype(np.float64)
+    arr = _rng.uniform(3, 1000, size=size).astype(np.float64)
     # ~10% NaN, ~5% +Inf, ~5% -Inf
     arr[::10] = np.nan
     arr[1::20] = np.inf

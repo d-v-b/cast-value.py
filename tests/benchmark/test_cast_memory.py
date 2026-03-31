@@ -29,6 +29,8 @@ SIZES = [
     pytest.param(1_000_000, id="1M"),
 ]
 
+_rng = np.random.default_rng(42)
+
 _results: list[tuple[str, int, str, int]] = []
 
 
@@ -99,11 +101,11 @@ def _print_memory_summary():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("cast_fn, impl_name", _IMPLEMENTATIONS)
+@pytest.mark.parametrize(("cast_fn", "impl_name"), _IMPLEMENTATIONS)
 @pytest.mark.parametrize("size", SIZES)
 def test_float_to_float_towards_zero_memory(cast_fn, impl_name, size):
     """Measure peak memory for float64 -> float32 towards-zero rounding."""
-    arr = np.random.uniform(-100, 100, size=size).astype(np.float64)
+    arr = _rng.uniform(-100, 100, size=size).astype(np.float64)
     peak = _measure_peak_bytes(cast_fn, arr, "float32", rounding_mode="towards-zero")
     _record("float_to_float_towards_zero", size, impl_name, peak)
 
@@ -113,11 +115,11 @@ def test_float_to_float_towards_zero_memory(cast_fn, impl_name, size):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("cast_fn, impl_name", _IMPLEMENTATIONS)
+@pytest.mark.parametrize(("cast_fn", "impl_name"), _IMPLEMENTATIONS)
 @pytest.mark.parametrize("size", SIZES)
 def test_int_to_int_clamp_memory(cast_fn, impl_name, size):
     """Measure peak memory for int32 -> int8 with clamp."""
-    arr = np.random.randint(-200, 300, size=size, dtype=np.int32)
+    arr = _rng.integers(-200, 300, size=size, dtype=np.int32)
     peak = _measure_peak_bytes(cast_fn, arr, "int8", out_of_range_mode="clamp")
     _record("int_to_int_clamp", size, impl_name, peak)
 
@@ -142,7 +144,7 @@ _RS_SCALAR_MAP_ENTRIES = [
 
 def _make_scalar_map_array(size: int) -> np.ndarray:
     """Create a float64 array starting at 3.0 with NaN, +Inf, -Inf sprinkled in."""
-    arr = np.random.uniform(3, 1000, size=size).astype(np.float64)
+    arr = _rng.uniform(3, 1000, size=size).astype(np.float64)
     arr[::10] = np.nan
     arr[1::20] = np.inf
     arr[3::20] = -np.inf

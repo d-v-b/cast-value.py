@@ -56,6 +56,7 @@ test-rs = [
 bench = [
   { include-group = "test-rs" },
   "pytest-benchmark >=5",
+  "pytest-codspeed",
 ]
 dev = [
   { include-group = "bench" },
