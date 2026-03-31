@@ -31,6 +31,25 @@ jobs:
 
       - uses: hynek/build-and-inspect-python-package@v2
 
+  publish-testpypi:
+    needs: [dist]
+    name: Publish to TestPyPI
+    environment: testpypi
+    permissions:
+      id-token: write
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: Packages
+          path: dist
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
   publish:
     needs: [dist]
     name: Publish to PyPI
