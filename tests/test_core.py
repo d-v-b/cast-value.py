@@ -15,7 +15,7 @@ from cast_value.impl._numpy import (
 from cast_value.zarr_compat._parsing import extract_raw_map
 
 if TYPE_CHECKING:
-    from cast_value.types import MapEntry, ScalarMapJSON
+    from cast_value.types import ScalarMapEntry, ScalarMapJSON
 
 
 # ---------------------------------------------------------------------------
@@ -123,7 +123,7 @@ if TYPE_CHECKING:
     ],
 )
 def test_apply_scalar_map(
-    case: Expect[tuple[np.ndarray, list[MapEntry]], np.ndarray],
+    case: Expect[tuple[np.ndarray, list[ScalarMapEntry]], np.ndarray],
 ) -> None:
     """Test that apply_scalar_map modifies the array in-place according to entries."""
     work, entries = case.input
@@ -435,7 +435,7 @@ def _call_cast(
     target_dtype: np.dtype,
     rounding_mode: str = "nearest-even",
     out_of_range_mode: str | None = None,
-    scalar_map_entries: list[MapEntry] | None = None,
+    scalar_map_entries: list[ScalarMapEntry] | None = None,
 ) -> np.ndarray:
     return cast_array(
         arr,
@@ -603,7 +603,7 @@ def _call_cast(
 )
 def test_cast_array_int_to_int(
     case: Expect[
-        tuple[np.ndarray, np.dtype, str | None, list[MapEntry] | None],
+        tuple[np.ndarray, np.dtype, str | None, list[ScalarMapEntry] | None],
         np.ndarray,
     ],
 ) -> None:
@@ -737,7 +737,7 @@ def test_cast_array_int_to_int_fail(
 )
 def test_cast_array_int_to_float(
     case: Expect[
-        tuple[np.ndarray, np.dtype, list[MapEntry] | None],
+        tuple[np.ndarray, np.dtype, list[ScalarMapEntry] | None],
         np.ndarray,
     ],
 ) -> None:
@@ -934,7 +934,7 @@ def test_cast_array_int_to_float(
 )
 def test_cast_array_float_to_int(
     case: Expect[
-        tuple[np.ndarray, np.dtype, str, str | None, list[MapEntry] | None],
+        tuple[np.ndarray, np.dtype, str, str | None, list[ScalarMapEntry] | None],
         np.ndarray,
     ],
 ) -> None:
@@ -1030,7 +1030,7 @@ def test_cast_array_float_to_int(
 )
 def test_cast_array_float_to_int_fail(
     case: ExpectFail[
-        tuple[np.ndarray, np.dtype, str, str | None, list[MapEntry] | None]
+        tuple[np.ndarray, np.dtype, str, str | None, list[ScalarMapEntry] | None]
     ],
 ) -> None:
     """Test that cast_array raises ValueError for invalid float-to-integer casts."""
@@ -1171,7 +1171,7 @@ def test_cast_array_float_to_int_fail(
 )
 def test_cast_array_float_to_float(
     case: Expect[
-        tuple[np.ndarray, np.dtype, list[MapEntry] | None],
+        tuple[np.ndarray, np.dtype, list[ScalarMapEntry] | None],
         np.ndarray,
     ],
 ) -> None:

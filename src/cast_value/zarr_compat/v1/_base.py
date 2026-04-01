@@ -22,9 +22,9 @@ if TYPE_CHECKING:
     from zarr.core.dtype.wrapper import TBaseDType, TBaseScalar, ZDType
 
     from cast_value.types import (
-        MapEntry,
         OutOfRangeMode,
         RoundingMode,
+        ScalarMapEntry,
         ScalarMapJSON,
     )
 
@@ -119,7 +119,7 @@ class _CastValueBaseV1(ArrayArrayCodec):
         arr: np.ndarray,
         *,
         target_dtype: np.dtype,
-        scalar_map_entries: Iterable[MapEntry] | None,
+        scalar_map_entries: Iterable[ScalarMapEntry] | None,
     ) -> np.ndarray:
         """Cast *arr* to *target_dtype*. Subclasses must override this."""
         raise NotImplementedError

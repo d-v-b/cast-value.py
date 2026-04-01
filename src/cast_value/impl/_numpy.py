@@ -11,16 +11,16 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from cast_value.types import (
-        MapEntry,
         OutOfRangeMode,
         RoundingMode,
         ScalarMapEntries,
+        ScalarMapEntry,
     )
 
 
 def _normalize_scalar_map(
     entries: ScalarMapEntries | None,
-) -> tuple[MapEntry, ...]:
+) -> tuple[ScalarMapEntry, ...]:
     """Normalize scalar map entries to a tuple of (src, tgt) pairs.
 
     Accepts an iterable of (src, tgt) pairs or a mapping of src -> tgt.
@@ -33,7 +33,7 @@ def _normalize_scalar_map(
     return tuple(entries)
 
 
-def apply_scalar_map(work: np.ndarray, entries: Iterable[MapEntry]) -> None:
+def apply_scalar_map(work: np.ndarray, entries: Iterable[ScalarMapEntry]) -> None:
     """Apply scalar map entries in-place. Single pass per entry."""
     for src, tgt in entries:
         if isinstance(src, (float, np.floating)) and np.isnan(src):
@@ -188,7 +188,7 @@ def _cast_array_impl(
     target_dtype: np.dtype,
     rounding: RoundingMode,
     out_of_range: OutOfRangeMode | None,
-    scalar_map_entries: Iterable[MapEntry] | None,
+    scalar_map_entries: Iterable[ScalarMapEntry] | None,
 ) -> np.ndarray:
     src_type: Literal["int", "float"] = (
         "int" if np.issubdtype(arr.dtype, np.integer) else "float"

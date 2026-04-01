@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
     from zarr.core.dtype.wrapper import TBaseDType, TBaseScalar, ZDType
 
-    from cast_value.types import MapEntry, ScalarMapJSON
+    from cast_value.types import ScalarMapEntry, ScalarMapJSON
 
 
 def extract_raw_map(
@@ -33,7 +33,7 @@ def parse_map_entries(
     mapping: Mapping[str, str],
     src_dtype: ZDType[TBaseDType, TBaseScalar],
     tgt_dtype: ZDType[TBaseDType, TBaseScalar],
-) -> tuple[MapEntry, ...]:
+) -> tuple[ScalarMapEntry, ...]:
     """Pre-parse a scalar map dict into a tuple of (src, tgt) pairs.
 
     Each entry's source value is deserialized using ``src_dtype`` and its target

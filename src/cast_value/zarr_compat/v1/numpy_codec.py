@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
     import numpy as np
 
-    from cast_value.types import MapEntry
+    from cast_value.types import ScalarMapEntry
 
 
 @dataclass(frozen=True, init=False)
@@ -25,7 +25,7 @@ class CastValueNumpyV1(_CastValueBaseV1):
         arr: np.ndarray,
         *,
         target_dtype: np.dtype,
-        scalar_map_entries: Iterable[MapEntry] | None,
+        scalar_map_entries: Iterable[ScalarMapEntry] | None,
     ) -> np.ndarray:
         return cast_array(
             arr,

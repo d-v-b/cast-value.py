@@ -12,7 +12,7 @@ from cast_value.zarr_compat.v1._base import _CastValueBaseV1
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from cast_value.types import MapEntry
+    from cast_value.types import ScalarMapEntry
 
 
 def _dtype_to_str(dtype: np.dtype) -> str:
@@ -21,7 +21,7 @@ def _dtype_to_str(dtype: np.dtype) -> str:
 
 
 def _convert_scalar_map(
-    entries: Iterable[MapEntry] | None,
+    entries: Iterable[ScalarMapEntry] | None,
 ) -> list[tuple[int | float, int | float]] | None:
     """Convert scalar map entries to plain Python types for cast-value-rs.
 
@@ -46,7 +46,7 @@ class CastValueRustV1(_CastValueBaseV1):
         arr: np.ndarray,
         *,
         target_dtype: np.dtype,
-        scalar_map_entries: Iterable[MapEntry] | None,
+        scalar_map_entries: Iterable[ScalarMapEntry] | None,
     ) -> np.ndarray:
         from cast_value_rs import (  # noqa: PLC0415  # pylint: disable=import-outside-toplevel
             cast_array as rs_cast_array,

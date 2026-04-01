@@ -26,7 +26,9 @@ class ScalarMapJSON(TypedDict):
 
 
 # Pre-parsed scalar map entry: (source_scalar, target_scalar)
-MapEntry = tuple[NumericScalar, NumericScalar]
+ScalarMapEntry = tuple[NumericScalar, NumericScalar]
 
 # Accepted types for scalar_map_entries parameters
-ScalarMapEntries: TypeAlias = Iterable[MapEntry] | Mapping[NumericScalar, NumericScalar]
+ScalarMapEntries: TypeAlias = (
+    Iterable[ScalarMapEntry] | Mapping[NumericScalar, NumericScalar]
+)

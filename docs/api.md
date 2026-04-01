@@ -8,7 +8,7 @@
 
 ::: cast_value.types.NumericScalar
 
-::: cast_value.types.MapEntry
+::: cast_value.types.ScalarMapEntry
 
 ::: cast_value.types.ScalarMapJSON
 
