@@ -64,9 +64,9 @@ def docs(session: nox.Session) -> None:
     session.install("-e.", *doc_deps)
 
     if session.interactive:
-        session.run("mkdocs", "serve", "--clean", *session.posargs)
+        session.run("zensical", "serve", *session.posargs)
     else:
-        session.run("mkdocs", "build", "--clean", *session.posargs)
+        session.run("zensical", "build", *session.posargs)
 
 
 @nox.session(default=False)

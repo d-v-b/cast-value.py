@@ -12,4 +12,4 @@ build:
     - asdf install uv latest
     - asdf global uv latest
     - uv sync --group docs
-    - uv run mkdocs build --site-dir $READTHEDOCS_OUTPUT/html
+    - uv run zensical build --site-dir $READTHEDOCS_OUTPUT/html

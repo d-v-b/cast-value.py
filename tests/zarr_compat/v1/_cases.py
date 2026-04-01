@@ -15,11 +15,11 @@ from conftest import Expect
 from zarr_compat.v1._helpers import arrays_bytes_equal
 
 if TYPE_CHECKING:
-    from cast_value.zarr_compat.v1 import CastValueBase
+    from cast_value.zarr_compat.v1 import CastValueBaseV1
 
 
 def encode_cases(
-    cls: type[CastValueBase],
+    cls: type[CastValueBaseV1],
 ) -> list[Expect[tuple[Any, np.ndarray, str], np.ndarray]]:
     """Test cases for encoding."""
     return [
@@ -77,7 +77,7 @@ def encode_cases(
 
 
 def decode_cases(
-    cls: type[CastValueBase],
+    cls: type[CastValueBaseV1],
 ) -> list[Expect[tuple[Any, np.ndarray, str], np.ndarray]]:
     """Test cases for decoding."""
     return [
@@ -105,8 +105,8 @@ def decode_cases(
 
 
 def roundtrip_cases(
-    cls: type[CastValueBase],
-) -> list[Expect[tuple[str, str, np.ndarray, type[CastValueBase]], np.ndarray]]:
+    cls: type[CastValueBaseV1],
+) -> list[Expect[tuple[str, str, np.ndarray, type[CastValueBaseV1]], np.ndarray]]:
     """Test cases for encode/decode roundtrip."""
     return [
         Expect(
@@ -148,7 +148,7 @@ def roundtrip_cases(
 
 
 def scalar_map_encode_cases(
-    cls: type[CastValueBase],
+    cls: type[CastValueBaseV1],
 ) -> list[Expect[tuple[Any, np.ndarray, str], np.ndarray]]:
     """Test cases for encode with scalar_map."""
     return [
@@ -169,7 +169,7 @@ def scalar_map_encode_cases(
 
 
 def scalar_map_decode_cases(
-    cls: type[CastValueBase],
+    cls: type[CastValueBaseV1],
 ) -> list[Expect[tuple[Any, np.ndarray, str], np.ndarray]]:
     """Test cases for decode with scalar_map."""
     return [

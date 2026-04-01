@@ -47,7 +47,7 @@ def parse_map_entries(
 
 
 @dataclass(frozen=True)
-class CastValueBase(ArrayArrayCodec):
+class CastValueBaseV1(ArrayArrayCodec):
     """Base class for cast-value array-to-array codecs.
 
     Subclasses must implement ``_cast_array`` to provide the actual

@@ -1,0 +1,32 @@
+[project]
+site_name = "cast-value"
+site_url = "https://cast-value.readthedocs.io/"
+site_author = "Davis Bennett"
+repo_name = "zarr-developers/cast-value.py"
+repo_url = "https://github.com/zarr-developers/cast-value.py"
+
+[theme]
+palette = [
+  { media = "(prefers-color-scheme: light)", scheme = "default" },
+  { media = "(prefers-color-scheme: dark)", scheme = "slate" },
+]
+
+[theme.features]
+search_suggest = true
+search_highlight = true
+navigation_expand = true
+navigation_tracking = true
+toc_follow = true
+
+[plugins.mkdocstrings.handlers.python]
+paths = ["."]
+options = { members_order = "source", separate_signature = true, filters = ["!^_"], show_root_heading = true, show_if_no_docstring = true, show_signature_annotations = true }
+
+[[plugins.mkdocstrings.handlers.python.inventories]]
+url = "https://docs.python.org/3/objects.inv"
+
+[[nav]]
+Home = "index.md"
+
+[[nav]]
+"Python API" = "api.md"

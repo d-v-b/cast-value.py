@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from cast_value.core import cast_array
-from cast_value.zarr_compat.v1._base import CastValueBase
+from cast_value.zarr_compat.v1._base import CastValueBaseV1
 
 if TYPE_CHECKING:
     import numpy as np
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True, init=False)
-class CastValueNumpy(CastValueBase):
+class CastValueNumpyV1(CastValueBaseV1):
     """Cast-value codec backed by the pure-numpy implementation."""
 
     def _cast_array(

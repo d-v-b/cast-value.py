@@ -7,17 +7,13 @@ package can be added alongside this one.
 
 from __future__ import annotations
 
-from cast_value.zarr_compat.v1._base import CastValueBase, parse_map_entries
-from cast_value.zarr_compat.v1.numpy_codec import CastValueNumpy
-from cast_value.zarr_compat.v1.rust_codec import CastValueRust
-
-# Backwards-compatible alias
-CastValue = CastValueNumpy
+from cast_value.zarr_compat.v1._base import CastValueBaseV1, parse_map_entries
+from cast_value.zarr_compat.v1.numpy_codec import CastValueNumpyV1
+from cast_value.zarr_compat.v1.rust_codec import CastValueRustV1
 
 __all__ = [
-    "CastValue",
-    "CastValueBase",
-    "CastValueNumpy",
-    "CastValueRust",
+    "CastValueBaseV1",
+    "CastValueNumpyV1",
+    "CastValueRustV1",
     "parse_map_entries",
 ]

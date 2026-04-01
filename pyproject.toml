@@ -62,12 +62,8 @@ dev = [
   { include-group = "bench" },
 ]
 docs = [
-    "markdown>=3.9",
-    "mdx-include>=1.4.2",
-    "mkdocs-material>=9.1.19",
-    "mkdocs>=1.1.2",
+    "zensical",
     "mkdocstrings-python>=1.18.2",
-    "pyyaml>=6.0.1",
 ]
 
 

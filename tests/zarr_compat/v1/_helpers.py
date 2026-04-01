@@ -10,7 +10,7 @@ from zarr.core.buffer import NDBuffer, default_buffer_prototype
 from zarr.core.dtype import get_data_type_from_json
 
 if TYPE_CHECKING:
-    from cast_value.zarr_compat.v1 import CastValueBase
+    from cast_value.zarr_compat.v1 import CastValueBaseV1
 
 
 def make_spec(
@@ -28,7 +28,7 @@ def make_spec(
 
 
 def encode(
-    codec: CastValueBase,
+    codec: CastValueBaseV1,
     arr: np.ndarray,
     source_dtype_str: str,
     fill_value: Any = 0,
@@ -42,7 +42,7 @@ def encode(
 
 
 def decode(
-    codec: CastValueBase,
+    codec: CastValueBaseV1,
     arr: np.ndarray,
     source_dtype_str: str,
     fill_value: Any = 0,

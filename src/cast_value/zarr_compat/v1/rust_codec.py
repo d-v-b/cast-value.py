@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from cast_value.zarr_compat.v1._base import CastValueBase
+from cast_value.zarr_compat.v1._base import CastValueBaseV1
 
 if TYPE_CHECKING:
     from cast_value.types import MapEntry
@@ -36,7 +36,7 @@ def _convert_scalar_map(
 
 
 @dataclass(frozen=True, init=False)
-class CastValueRust(CastValueBase):
+class CastValueRustV1(CastValueBaseV1):
     """Cast-value codec backed by the cast-value-rs Rust implementation."""
 
     def _cast_array(

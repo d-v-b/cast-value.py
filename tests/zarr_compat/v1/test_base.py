@@ -1,4 +1,4 @@
-"""Tests for CastValueBase — shared behavior independent of backend."""
+"""Tests for CastValueNumpyV1Base — shared behavior independent of backend."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from zarr.core.buffer import NDBuffer
 from zarr.core.chunk_grids import RegularChunkGrid
 from zarr.core.dtype import get_data_type_from_json
 
-from cast_value.zarr_compat.v1 import CastValue, parse_map_entries
+from cast_value.zarr_compat.v1 import CastValueNumpyV1, parse_map_entries
 from zarr_compat.v1._helpers import arrays_bytes_equal, make_spec
 
 # ---------------------------------------------------------------------------
@@ -73,7 +73,7 @@ def test_from_dict_to_dict_roundtrip(
     case: Expect[dict, dict],
 ) -> None:
     """Test that from_dict followed by to_dict recovers the original dict."""
-    codec = CastValue.from_dict(case.input)
+    codec = CastValueNumpyV1.from_dict(case.input)
     result = codec.to_dict()
     assert result == case.expected
 
@@ -128,7 +128,7 @@ def test_validate(
 ) -> None:
     """Test that validate accepts valid type combinations."""
     source_dtype_str, target_dtype_str, out_of_range = case.input
-    codec = CastValue(data_type=target_dtype_str, out_of_range=out_of_range)  # ty: ignore[invalid-argument-type]
+    codec = CastValueNumpyV1(data_type=target_dtype_str, out_of_range=out_of_range)  # ty: ignore[invalid-argument-type]
     source_zdtype = get_data_type_from_json(source_dtype_str, zarr_format=3)
     codec.validate(
         shape=(4,),
@@ -153,7 +153,7 @@ def test_validate_fail(
 ) -> None:
     """Test that validate rejects invalid type combinations."""
     source_dtype_str, target_dtype_str, out_of_range = case.input
-    codec = CastValue(data_type=target_dtype_str, out_of_range=out_of_range)  # ty: ignore[invalid-argument-type]
+    codec = CastValueNumpyV1(data_type=target_dtype_str, out_of_range=out_of_range)  # ty: ignore[invalid-argument-type]
     source_zdtype = get_data_type_from_json(source_dtype_str, zarr_format=3)
     with pytest.raises(case.err, match=case.msg):
         codec.validate(
@@ -193,7 +193,7 @@ def test_resolve_metadata(
 ) -> None:
     """Test that resolve_metadata transforms fill_value and dtype correctly."""
     source_dtype_str, target_dtype_str, fill_value = case.input
-    codec = CastValue(data_type=target_dtype_str)
+    codec = CastValueNumpyV1(data_type=target_dtype_str)
     spec = make_spec(source_dtype_str, fill_value)
     result = codec.resolve_metadata(spec)
     expected_dtype, expected_fill = case.expected
@@ -282,7 +282,7 @@ def test_compute_encoded_size(
 ) -> None:
     """Test that compute_encoded_size calculates byte length correctly."""
     source_dtype_str, target_dtype_str, input_bytes = case.input
-    codec = CastValue(data_type=target_dtype_str)
+    codec = CastValueNumpyV1(data_type=target_dtype_str)
     spec = make_spec(source_dtype_str, 0)
     result = codec.compute_encoded_size(input_bytes, spec)
     assert result == case.expected
@@ -294,9 +294,9 @@ def test_compute_encoded_size(
 
 
 def test_init_with_zdtype() -> None:
-    """Test that CastValue can be constructed with a ZDType instead of a string."""
+    """Test that CastValueNumpyV1 can be constructed with a ZDType instead of a string."""
     zdtype = get_data_type_from_json("uint8", zarr_format=3)
-    codec = CastValue(data_type=zdtype)
+    codec = CastValueNumpyV1(data_type=zdtype)
     assert codec.dtype is zdtype
 
 
@@ -311,7 +311,7 @@ def test_init_with_zdtype() -> None:
         Expect(
             id="async-encode-int32-to-uint8",
             input=(
-                CastValue(data_type="uint8"),
+                CastValueNumpyV1(data_type="uint8"),
                 np.array([1, 2, 3, 4], dtype=np.int32),
                 "int32",
             ),
@@ -321,7 +321,7 @@ def test_init_with_zdtype() -> None:
     ],
 )
 def test_encode_single(
-    case: Expect[tuple[CastValue, np.ndarray, str], np.ndarray],
+    case: Expect[tuple[CastValueNumpyV1, np.ndarray, str], np.ndarray],
 ) -> None:
     """Test that the async _encode_single path produces the same result as sync."""
     codec, arr, source_dtype_str = case.input
@@ -339,7 +339,7 @@ def test_encode_single(
         Expect(
             id="async-decode-uint8-to-int32",
             input=(
-                CastValue(data_type="uint8"),
+                CastValueNumpyV1(data_type="uint8"),
                 np.array([1, 2, 3], dtype=np.uint8),
                 "int32",
             ),
@@ -349,7 +349,7 @@ def test_encode_single(
     ],
 )
 def test_decode_single(
-    case: Expect[tuple[CastValue, np.ndarray, str], np.ndarray],
+    case: Expect[tuple[CastValueNumpyV1, np.ndarray, str], np.ndarray],
 ) -> None:
     """Test that the async _decode_single path produces the same result as sync."""
     codec, arr, source_dtype_str = case.input
