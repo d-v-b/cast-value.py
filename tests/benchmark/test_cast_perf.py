@@ -138,6 +138,30 @@ def test_int_to_float_widen(benchmark, cast_fn, size):
 
 
 # ---------------------------------------------------------------------------
+# float -> uint8 with clamp (SIMD-accelerated path in cast-value-rs)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("size", SIZES)
+def test_float64_to_uint8_clamp(benchmark, cast_fn, size):
+    """Benchmark float64 -> uint8 with clamp (targets SIMD fast path in rust)."""
+    arr = _rng.uniform(-50, 300, size=size).astype(np.float64)
+    benchmark(cast_fn, arr, "uint8", out_of_range_mode="clamp")
+
+
+# ---------------------------------------------------------------------------
+# float -> int32 with clamp (SIMD-accelerated path in cast-value-rs)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("size", SIZES)
+def test_float64_to_int32_clamp(benchmark, cast_fn, size):
+    """Benchmark float64 -> int32 with clamp (targets SIMD fast path in rust)."""
+    arr = _rng.uniform(-3e9, 3e9, size=size).astype(np.float64)
+    benchmark(cast_fn, arr, "int32", out_of_range_mode="clamp")
+
+
+# ---------------------------------------------------------------------------
 # float -> int with scalar_map (NaN, +Inf, -Inf -> sentinel ints)
 # ---------------------------------------------------------------------------
 

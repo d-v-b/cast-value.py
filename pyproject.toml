@@ -85,7 +85,7 @@ env-vars.PYTHONWARNDEFAULTENCODING = "1"
 
 [tool.pytest]
 minversion = "9.0"
-addopts = ["-ra", "--showlocals"]
+addopts = ["-ra", "--showlocals", "--ignore=tests/benchmark"]
 strict = true
 filterwarnings = [
   "error",
@@ -157,6 +157,7 @@ ignore = [
 "tests/**" = ["T20"]
 "noxfile.py" = ["T20"]
 "docs/examples/**" = ["T20"]
+"examples/**" = ["T20"]
 
 
 [tool.pylint]
