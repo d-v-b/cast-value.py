@@ -19,7 +19,14 @@ OutOfRangeMode = Literal["clamp", "wrap"]
 
 
 class ScalarMapJSON(TypedDict):
-    """JSON representation of the scalar_map codec configuration field."""
+    """
+    JSON representation of the scalar_map codec configuration field.
+
+    This type models permitted values for the [`scalar_map`](https://github.com/zarr-developers/zarr-extensions/tree/main/codecs/cast_value#scalar_map) field in the
+    [`configuration`](https://github.com/zarr-developers/zarr-extensions/tree/main/codecs/cast_value#configuration) field of the `cast_value` codec metadata.
+
+    See the [`cast_value` spec](https://github.com/zarr-developers/zarr-extensions/tree/main/codecs/cast_value) for details.
+    """
 
     encode: NotRequired[list[tuple[object, object]]]
     decode: NotRequired[list[tuple[object, object]]]

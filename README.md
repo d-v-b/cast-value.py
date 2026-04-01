@@ -59,9 +59,13 @@ precision lost due to rounding is acceptable.
 ## how
 
 ```python
+# import the codec that uses the rust backend
+from cast_value import CastValueRustV1
+
 # Create an in-memory zarr array with float64 dtype, stored as uint8.
 # The cast_value codec handles the conversion: float64 -> uint8 on write,
 # uint8 -> float64 on read.
+
 codec = CastValueRustV1(
     data_type="uint8",
     rounding="nearest-even",

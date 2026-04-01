@@ -25,7 +25,7 @@ pip install cast-value[rs]
 ```python
 import numpy as np
 import zarr
-from cast_value.zarr_compat.v1 import CastValueNumpyV1
+from cast_value import CastValueNumpyV1
 
 zarr.registry.register_codec("cast_value", CastValueNumpyV1)
 
@@ -56,6 +56,6 @@ Two backends are available:
 - **`CastValueRustV1`** — Rust via
   [cast-value-rs](https://pypi.org/project/cast-value-rs/). Faster for
   non-default rounding modes and SIMD-accelerated float-to-integer casts with
-  clamping.
+  clamping, with more efficient memory usage.
 
 Both implement the same codec interface and produce identical results.
