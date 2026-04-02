@@ -174,7 +174,12 @@ def _cast_float(
         case "towards-negative":
             use_other = other_wide < ne_wide
         case "nearest-away":
-            use_other = np.abs(other_wide) > np.abs(ne_wide)
+            d_ne = np.abs(ne_wide - src)
+            d_other = np.abs(other_wide - src)
+            # Pick the closer candidate; break ties away from zero
+            use_other = (d_other < d_ne) | (
+                (d_other == d_ne) & (np.abs(other_wide) > np.abs(ne_wide))
+            )
 
     corrected = result.copy()
     indices = np.where(inexact)[0]

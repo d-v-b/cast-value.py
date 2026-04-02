@@ -1201,12 +1201,16 @@ def _expected_for_rounding_mode(
     hi: float,
     mode: str,
     ne_val: float,
+    original: float | None = None,
 ) -> float:
     """Return the expected result of rounding a value that lies between *lo* and *hi*.
 
     *ne_val* is the nearest-even result from numpy (used only for the
     ``"nearest-even"`` case, since reproducing IEEE 754 tie-breaking from
     scratch is error-prone).
+
+    *original* is the source value before narrowing (needed for ``nearest-away``
+    to determine which candidate is closer).
     """
     match mode:
         case "nearest-even":
@@ -1218,6 +1222,14 @@ def _expected_for_rounding_mode(
         case "towards-negative":
             return lo
         case "nearest-away":
+            assert original is not None
+            d_lo = abs(lo - original)
+            d_hi = abs(hi - original)
+            if d_lo < d_hi:
+                return lo
+            if d_hi < d_lo:
+                return hi
+            # Tie: pick the one farther from zero
             return hi if abs(hi) >= abs(lo) else lo
     raise ValueError(mode)  # pragma: no cover
 
@@ -1253,7 +1265,7 @@ def _make_float_rounding_cases() -> list[Expect]:
 
             for mode in _ROUNDING_MODES:
                 expected_val = _expected_for_rounding_mode(
-                    float(lo), float(hi), mode, float(ne)
+                    float(lo), float(hi), mode, float(ne), original=float(val)
                 )
                 sign_label = "pos" if sign > 0 else "neg"
                 cases.append(
@@ -1306,7 +1318,7 @@ def _make_int_to_float_rounding_cases() -> list[Expect]:
             hi = max(ne, other, key=float)
 
             expected_val = _expected_for_rounding_mode(
-                float(lo), float(hi), mode, float(ne)
+                float(lo), float(hi), mode, float(ne), original=float(val)
             )
             sign_label = "pos" if sign > 0 else "neg"
             cases.append(
