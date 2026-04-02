@@ -37,6 +37,9 @@ dependencies = [
 [project.optional-dependencies]
 rs = ["cast-value-rs"]
 
+[project.entry-points."zarr.codecs"]
+cast_value = "cast_value.zarr_compat.v1._entrypoint:CastValue"
+
 [project.urls]
 Homepage = "https://github.com/zarr-developers/cast-value"
 "Bug Tracker" = "https://github.com/zarr-developers/cast-value/issues"
