@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -27,7 +26,7 @@ EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "examples"
 def test_example_runs(script: Path) -> None:
     """Test that an example script exits successfully."""
     result = subprocess.run(
-        [sys.executable, str(script)],
+        ["uv", "run", "--reinstall-package", "cast-value", "python", str(script)],
         capture_output=True,
         text=True,
         timeout=120,
